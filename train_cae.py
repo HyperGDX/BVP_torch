@@ -12,7 +12,7 @@ LATENT_DIM = 64
 ALL_MOTION = [1, 2, 3, 4, 5, 6]
 N_MOTION = len(ALL_MOTION)
 batch_size = 32
-EPOCH = 1000
+EPOCH = 100
 device = "cuda"
 encoder = CAE_ENCODER(LATENT_DIM)
 decoder = CAE_DECODER(LATENT_DIM)
@@ -31,22 +31,21 @@ if TRAIN_ALL == True:
     full_dataset = read_bvp.BVPDataSet(data_dir="data/BVP", motion_sel=ALL_MOTION)
 else:
     print("Train on test data")
-    full_dataset = read_bvp.BVPDataSet(data_dir="data/BVP/20181109-VS/6-link/user1", motion_sel=ALL_MOTION)
+    full_dataset = read_bvp.BVPDataSet(data_dir="testdata/user1", motion_sel=ALL_MOTION)
 
 train_size = int(0.9 * len(full_dataset))
 test_size = len(full_dataset) - train_size
 train_dataset, test_dataset = random_split(full_dataset, [train_size, test_size])
 
-train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=8)
-test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, num_workers=8)
+train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size)
 
 
 TIME_STEPS = full_dataset.get_T_max()
 
 
-# model = LSTMModel(input_dim, hidden_dim, layer_dim, output_dim)
-
-criterion = MSELoss_SEQ()
+# criterion = MSELoss_SEQ()
+criterion = nn.MSELoss()
 
 learning_rate = 0.001
 
@@ -56,11 +55,12 @@ scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 300
 begin_time = int(time.time())
 
 
-draw_data = next(iter(test_loader))[0][0].permute(0, 2, 3, 1)
+one_batch_data = next(iter(test_loader))[0]
+draw_data = one_batch_data[0].permute(0, 2, 3, 1)
 for i in range(TIME_STEPS):
-    plt.subplot(1, TIME_STEPS, i+1)
-    plt.imshow(draw_data[i, :, :, :])
-plt.show()
+    plt.subplot(2, TIME_STEPS, i+1)
+    plt.imshow(draw_data[i, :, :, :], cmap="gray")
+    plt.axis('off')
 
 
 for epoch in range(EPOCH):
@@ -103,3 +103,14 @@ for epoch in range(EPOCH):
     # if (test_loss < best_loss) & (epoch > 20):
     #     best_loss = test_loss
     #     torch.save(model.state_dict(), f"model_save/train_{begin_time}.pt")
+
+
+draw_data_encode = encoder(one_batch_data.to(device))
+draw_data_decode = decoder(draw_data_encode)
+draw_data = draw_data_decode[0].cpu().permute(0, 2, 3, 1).detach().numpy()
+
+for i in range(TIME_STEPS):
+    plt.subplot(2, TIME_STEPS, TIME_STEPS+i+1)
+    plt.imshow(draw_data[i, :, :, :], cmap="gray")
+    plt.axis('off')
+plt.show()
