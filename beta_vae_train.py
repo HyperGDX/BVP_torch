@@ -11,8 +11,8 @@ TRAIN_ALL = False
 ALL_MOTION = [1, 2, 3, 4, 5, 6]
 N_MOTION = len(ALL_MOTION)
 batch_size = 32
-EPOCH = 150
-device = "cuda"
+EPOCH = 10
+device = "mps"
 vae_model = BetaVAE(in_channels=1, latent_dim=16)
 
 vae_model.to(device)
@@ -26,7 +26,7 @@ if TRAIN_ALL == True:
     full_dataset = read_bvp.BVPDataSet(data_dir="data/BVP", motion_sel=ALL_MOTION)
 else:
     print("Train on test data")
-    full_dataset = read_bvp.BVPDataSet(data_dir="data/BVP/20181109-VS/6-link/user1", motion_sel=ALL_MOTION)
+    full_dataset = read_bvp.BVPDataSet(data_dir="testdata/user1", motion_sel=ALL_MOTION)
 
 train_size = int(0.9 * len(full_dataset))
 test_size = len(full_dataset) - train_size
@@ -48,12 +48,12 @@ scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10, 30, 
 begin_time = int(time.time())
 
 
-# one_batch_data = next(iter(test_loader))[0]
-# draw_data = one_batch_data[0].permute(0, 2, 3, 1)
-# for i in range(TIME_STEPS):
-#     plt.subplot(2, TIME_STEPS, i+1)
-#     plt.imshow(draw_data[i, :, :, :], cmap="gray")
-#     plt.axis('off')
+one_batch_data = next(iter(test_loader))[0]
+draw_data = one_batch_data[0].permute(0, 2, 3, 1)
+for i in range(TIME_STEPS):
+    plt.subplot(2, TIME_STEPS, i+1)
+    plt.imshow(draw_data[i, :, :, :], cmap="gray")
+    plt.axis('off')
 
 
 for epoch in range(EPOCH):
@@ -96,12 +96,12 @@ for epoch in range(EPOCH):
 #     #     torch.save(model.state_dict(), f"model_save/train_{begin_time}.pt")
 
 
-# draw_data_encode = encoder(one_batch_data.to(device))
-# draw_data_decode = decoder(draw_data_encode)
-# draw_data = draw_data_decode[0].cpu().permute(0, 2, 3, 1).detach().numpy()
+draw_data_encode = vae_model(one_batch_data.to(device))
 
-# for i in range(TIME_STEPS):
-#     plt.subplot(2, TIME_STEPS, TIME_STEPS+i+1)
-#     plt.imshow(draw_data[i, :, :, :], cmap="gray")
-#     plt.axis('off')
-# plt.show()
+draw_data = draw_data_encode[0][0].cpu().permute(0, 2, 3, 1).detach().numpy()
+
+for i in range(TIME_STEPS):
+    plt.subplot(2, TIME_STEPS, TIME_STEPS+i+1)
+    plt.imshow(draw_data[i, :, :, :], cmap="gray")
+    plt.axis('off')
+plt.show()
