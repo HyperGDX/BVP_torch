@@ -35,8 +35,6 @@ test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, num_worker
 TIME_STEPS = full_dataset.get_T_max()
 
 
-# model = LSTMModel(input_dim, hidden_dim, layer_dim, output_dim)
-
 criterion = nn.CrossEntropyLoss()
 
 learning_rate = 0.01

@@ -22,8 +22,8 @@ class TimeDistributed(nn.Module):
         elif isinstance(self.module, nn.Conv2d) or isinstance(self.module, nn.MaxPool2d)\
                 or isinstance(self.module, nn.AvgPool2d) or isinstance(self.module, nn.BatchNorm2d)\
                 or isinstance(self.module, SeparableConv2d) or isinstance(self.module, nn.Upsample)\
-                or isinstance(self.module, nn.ConvTranspose2d) or isinstance(self.module,nn.MaxPool2d)\
-                    or isinstance(self.module,nn.MaxUnpool2d):
+                or isinstance(self.module, nn.ConvTranspose2d) or isinstance(self.module, nn.MaxPool2d)\
+                or isinstance(self.module, nn.MaxUnpool2d) or isinstance(self.module, nn.LeakyReLU):
             b, t, c, h, w = x.size()
             x_reshape = x.contiguous().view(b * t, c, h, w)
             y = self.module(x_reshape)
@@ -55,11 +55,11 @@ class Widar3_raw(nn.Module):
     def __init__(self, num_classes, drop_rate=0.5) -> None:
         super().__init__()
         self.drop_rate = drop_rate
-        self.time_conv2d1 = TimeDistributed(nn.Conv2d(1, 16, 5))
-        self.time_pool1 = TimeDistributed(nn.MaxPool2d(2))
-        self.flat1 = TimeDistributed(nn.Flatten())
-        self.linear1 = TimeDistributed(nn.Linear(1024, 64))
-        self.linear2 = TimeDistributed(nn.Linear(64, 64))
+        self.time_conv2d1 = TimeDistributed(nn.Conv2d(1, 16, 5))  # b*t*1*16*16
+        self.time_pool1 = TimeDistributed(nn.MaxPool2d(2))  # b*t*16*8*8
+        self.flat1 = TimeDistributed(nn.Flatten())  # b*t*1024
+        self.linear1 = TimeDistributed(nn.Linear(1024, 64))  # b*t*64
+        self.linear2 = TimeDistributed(nn.Linear(64, 64))  # b*t*64
         self.gru = nn.GRU(input_size=64, hidden_size=128, batch_first=True)
         self.linear3 = nn.Linear(128, num_classes)
 
@@ -81,10 +81,10 @@ class Widar3_raw(nn.Module):
 
 
 class Widar3_improve(nn.Module):
-    def __init__(self, num_classes, drop_rate=0.5) -> None:
+    def __init__(self, num_classes, drop_rate=0.6) -> None:
         super().__init__()
         self.drop_rate = drop_rate
-        self.time_conv2d1 = TimeDistributed(SeparableConv2d(1, 16, 5))
+        self.time_conv2d1 = TimeDistributed(nn.Conv2d(1, 16, 5))
         self.time_pool1 = TimeDistributed(nn.AvgPool2d(2))
         self.flat1 = TimeDistributed(nn.Flatten())
         self.linear1 = TimeDistributed(nn.LazyLinear(256))

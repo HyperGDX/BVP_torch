@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, random_split
-from vae_model import CAE_ENCODER, CAE_DECODER, MSELoss_SEQ
+from ae_model import CAE_ENCODER, CAE_DECODER, MSELoss_SEQ
 import read_bvp
 import time
 import matplotlib.pyplot as plt
@@ -12,8 +12,8 @@ LATENT_DIM = 64
 ALL_MOTION = [1, 2, 3, 4, 5, 6]
 N_MOTION = len(ALL_MOTION)
 batch_size = 32
-EPOCH = 100
-device = "cuda"
+EPOCH = 30
+device = "mps"
 encoder = CAE_ENCODER(LATENT_DIM)
 decoder = CAE_DECODER(LATENT_DIM)
 
