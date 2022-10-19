@@ -30,27 +30,26 @@ class BetaVAE(BaseVAE):
 
         modules = []
         if hidden_dims is None:
-            hidden_dims = [8, 16, 32]
+            hidden_dims = [8, 16]
 
         # Build Encoder
         for h_dim in hidden_dims:
             modules.append(
                 nn.Sequential(
                     TimeDistributed(nn.Conv2d(in_channels, out_channels=h_dim,
-                                              kernel_size=3, stride=1, padding=0)),
+                                              kernel_size=3, stride=2, padding=1)),
                     TimeDistributed(nn.BatchNorm2d(h_dim)),
                     TimeDistributed(nn.LeakyReLU()))
             )
             in_channels = h_dim
-
         self.encoder = nn.Sequential(*modules)
-        self.fc_mu = nn.Linear(hidden_dims[-1]*4, latent_dim)
-        self.fc_var = nn.Linear(hidden_dims[-1]*4, latent_dim)
+        self.fc_mu = nn.LazyLinear(latent_dim)
+        self.fc_var = nn.LazyLinear(latent_dim)
 
         # Build Decoder
         modules = []
 
-        self.decoder_input = nn.Linear(latent_dim, hidden_dims[-1] * 4)
+        self.decoder_input = nn.Linear(latent_dim, 28*16*5*5)
 
         hidden_dims.reverse()
 
@@ -60,7 +59,7 @@ class BetaVAE(BaseVAE):
                     TimeDistributed(nn.ConvTranspose2d(hidden_dims[i],
                                                        hidden_dims[i + 1],
                                                        kernel_size=3,
-                                                       stride=1,
+                                                       stride=2,
                                                        padding=0,
                                                        output_padding=0)),
                     TimeDistributed(nn.BatchNorm2d(hidden_dims[i + 1])),
@@ -74,12 +73,12 @@ class BetaVAE(BaseVAE):
                                                hidden_dims[-1],
                                                kernel_size=3,
                                                stride=2,
-                                               padding=1,
-                                               output_padding=1)),
+                                               padding=1, output_padding=1
+                                               )),
             TimeDistributed(nn.BatchNorm2d(hidden_dims[-1])),
             TimeDistributed(nn.LeakyReLU()),
-            TimeDistributed(nn.Conv2d(hidden_dims[-1], out_channels=3,
-                                      kernel_size=3, padding=1))
+            TimeDistributed(nn.Conv2d(hidden_dims[-1], out_channels=1,
+                                      kernel_size=3))
         )
 
     def encode(self, input):
@@ -89,7 +88,7 @@ class BetaVAE(BaseVAE):
         :param input: (Tensor) Input tensor to encoder [N x C x H x W]
         :return: (Tensor) List of latent codes
         """
-        result = self.encoder(input)
+        result = self.encoder(input)  # 32,28,16,5,5
         result = torch.flatten(result, start_dim=1)
 
         # Split the result into mu and var components
@@ -100,8 +99,8 @@ class BetaVAE(BaseVAE):
         return [mu, log_var]
 
     def decode(self, z):
-        result = self.decoder_input(z)
-        result = result.view(-1, 512, 2, 2)
+        result = self.decoder_input(z)  # b*64
+        result = result.view(-1, 28, 16, 5, 5)
         result = self.decoder(result)
         result = self.final_layer(result)
         result = F.tanh(result)
@@ -124,14 +123,14 @@ class BetaVAE(BaseVAE):
         z = self.reparameterize(mu, log_var)
         return [self.decode(z), input, mu, log_var]
 
-    def loss_function(self,
+    def loss_function(self, inp,
                       *args,
                       **kwargs) -> dict:
         self.num_iter += 1
-        recons = args[0]
-        input = args[1]
-        mu = args[2]
-        log_var = args[3]
+        recons = inp[0]
+        input = inp[1]
+        mu = inp[2]
+        log_var = inp[3]
         kld_weight = kwargs['M_N']  # Account for the minibatch samples from the dataset
 
         recons_loss = F.mse_loss(recons, input)

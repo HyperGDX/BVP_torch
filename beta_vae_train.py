@@ -11,7 +11,7 @@ TRAIN_ALL = False
 ALL_MOTION = [1, 2, 3, 4, 5, 6]
 N_MOTION = len(ALL_MOTION)
 batch_size = 32
-EPOCH = 30
+EPOCH = 150
 device = "cuda"
 vae_model = BetaVAE(in_channels=1, latent_dim=16)
 
@@ -26,7 +26,7 @@ if TRAIN_ALL == True:
     full_dataset = read_bvp.BVPDataSet(data_dir="data/BVP", motion_sel=ALL_MOTION)
 else:
     print("Train on test data")
-    full_dataset = read_bvp.BVPDataSet(data_dir="testdata/user1", motion_sel=ALL_MOTION)
+    full_dataset = read_bvp.BVPDataSet(data_dir="data/BVP/20181109-VS/6-link/user1", motion_sel=ALL_MOTION)
 
 train_size = int(0.9 * len(full_dataset))
 test_size = len(full_dataset) - train_size
@@ -42,9 +42,9 @@ TIME_STEPS = full_dataset.get_T_max()
 # criterion = MSELoss_SEQ()
 
 
-optimizer = torch.optim.Adam(vae_model.parameters(), lr=0.01)
+optimizer = torch.optim.Adam(vae_model.parameters(), lr=0.001)
 # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.1)
-# scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[100, 300, 800], gamma=0.1)
+scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[10, 30, 80], gamma=0.1)
 begin_time = int(time.time())
 
 
@@ -65,15 +65,15 @@ for epoch in range(EPOCH):
         img, label = data[0].to(device), data[1].to(device)
         optimizer.zero_grad()
         output = vae_model(img)  # [self.decode(z), input, mu, log_var]
-        train_batch_loss = vae_model.loss_function(output)
-        train_batch_loss.backward()
+        train_batch_loss = vae_model.loss_function(output, M_N=0.005)
+        train_batch_loss["loss"].backward()
         optimizer.step()
-        train_loss_sum += train_batch_loss.item()
+        train_loss_sum += train_batch_loss["loss"].item()
     train_epoch_loss = train_loss_sum / (idx+1)
 
     print(f"Epoch [{epoch}] lr: {optimizer.state_dict()['param_groups'][0]['lr']}", end=" ")
     print('Train epoch loss:', train_epoch_loss)
-#     scheduler.step()
+    scheduler.step()
 
 #     #### validation ####
 #     best_loss = 10000.0
